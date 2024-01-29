@@ -42,10 +42,8 @@ class InstallCommand extends Command
             $this->error('Your database credentials are wrong!');
             return 0;
         }
-
-
-        $this->installSubsidiary();
         $this->alert('Application is installed successfully.');
+        $this->installSubsidiary();
         return 1;
     }
 
