@@ -20,8 +20,8 @@ class InstallCommand extends Command
                         {--db-database= : Name for the database}
                         {--db-username=root : Username for accessing the database}
                         {--db-password= : Password for accessing the database}
-                        {--github-repository: Repository du projet}
-                        {--github-token: Token accès au repository}
+                        {--github-repository=: Repository du projet}
+                        {--github-token=: Token accès au repository}
                         ';
 
     protected $description = 'Installation Initial du système';
