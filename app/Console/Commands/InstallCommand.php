@@ -20,6 +20,8 @@ class InstallCommand extends Command
                         {--db-database= : Name for the database}
                         {--db-username=root : Username for accessing the database}
                         {--db-password= : Password for accessing the database}
+                        {--github-repository: Repository du projet}
+                        {--github-token: Token accès au repository}
                         ';
 
     protected $description = 'Installation Initial du système';
@@ -45,7 +47,6 @@ class InstallCommand extends Command
         }
 
         $this->alert('Application is installed successfully.');
-        $this->installSubsidiary();
         return 1;
     }
 
@@ -111,6 +112,8 @@ class InstallCommand extends Command
             'DB_DATABASE' => $this->option('db-database'),
             'DB_USERNAME' => $this->option('db-username'),
             'DB_PASSWORD' => $this->option('db-password'),
+            'GITHUB_REPOSITORY' => $this->option('github-repository'),
+            'GITHUB_TOKEN' => $this->option('github-token')
         ]);
         $conn = config('database.default', 'mysql');
         $dbConfig = Config::get("database.connections.$conn");
@@ -123,151 +126,5 @@ class InstallCommand extends Command
         Config::set("database.connections.$conn", $dbConfig);
         DB::purge($conn);
         DB::reconnect($conn);
-    }
-
-    private function installSubsidiary()
-    {
-        if(!file_exists(base_path('.github'))) {
-            mkdir(base_path('.github'));
-            mkdir(base_path('.github/workflows'));
-        }
-
-        if($this->confirm('Voulez-vous utiliser "Close Issue" ?')) {
-            $this->createFileCloseIssue();
-        }
-
-        if($this->confirm("Voulez-vous utiliser 'Label' ?")) {
-            $this->createFileLabeled();
-        }
-
-        $this->createDependabotAutoMerge();
-        $this->createFixPhpStyle();
-
-        if($this->confirm("Voulez-vous utiliser 'PhpStan' ?")) {
-            spin(function () {
-                Process::run('composer require --dev phpstan/phpstan');
-                Process::run('composer require --dev nunomaduro/larastan');
-                Process::run('php artisan vendor:publish --provider="NunoMaduro\Larastan\LarastanServiceProvider" --tag=config');
-                $this->createPhpStan();
-            }, "Installation de PhpStan...");
-        }
-
-
-        if($this->confirm("Voulez-vous utiliser 'PR Update' ?")) {
-            $this->createPrUpdate();
-        }
-
-        if($this->confirm("Voulez-vous utiliser 'Release' ?")) {
-            $this->createRelease();
-        }
-
-        if($this->confirm("Voulez-vous utiliser 'Test' ?")) {
-            $this->createTest();
-        }
-
-        if($this->confirm("Voulez-vous utiliser 'Update Changelog' ?")) {
-            $this->createUpChangelog();
-        }
-
-        $this->info("Installation des dépendances supplémentaires...");
-        $this->info("Installation de Log Viewer...");
-
-        Process::run('composer require arcanedev/log-viewer');
-        Process::run('php artisan log-viewer:publish');
-
-        $this->info("Installation de Github API");
-        Process::run('composer require knplabs/github-api');
-
-        $this->info("Installation de Livewire");
-        Process::run('composer require livewire/livewire');
-        Process::run('composer require jantinnerezo/livewire-alert');
-
-        Process::run('git add .');
-        Process::run('git commit -m "Init System"');
-        Process::run('git push origin master');
-
-        $this->alert("Installation des packages subsidiaire Terminer");
-    }
-
-    private function createFileCloseIssue()
-    {
-        $content = file_get_contents('https://github.com/vortechstudio-packager/github-workflow/raw/main/github/workflows/close_issue.yml');
-        file_put_contents(base_path('.github/workflows/close-issue.yml'), $content, FILE_APPEND);
-        $this->info('File close-issue.yml created successfully.');
-    }
-
-    private function createFileLabeled()
-    {
-        $content_work = file_get_contents('https://github.com/vortechstudio-packager/github-workflow/raw/main/github/workflows/label.yml');
-        file_put_contents(base_path('.github/workflows/label.yml'), $content_work, FILE_APPEND);
-        $content_pint = file_get_contents('https://github.com/vortechstudio-packager/github-workflow/raw/main/github/labeler.yml');
-        file_put_contents(base_path('.github/labeler.yml'), $content_pint, FILE_APPEND);
-    }
-
-    private function createDependabotAutoMerge()
-    {
-        $content_work = file_get_contents('https://github.com/vortechstudio-packager/github-workflow/raw/main/github/workflows/dependabot-auto-merge.yml');
-        file_put_contents(base_path('.github/workflows/dependabot-auto-merge.yml'), $content_work, FILE_APPEND);
-        $this->info('File dependabot-auto-merge.yml created successfully.');
-
-        $content_pint = file_get_contents('https://github.com/vortechstudio-packager/github-workflow/raw/main/github/dependabot.yml');
-        file_put_contents(base_path('.github/dependabot.yml'), $content_pint, FILE_APPEND);
-        $this->info('File dependabot.yml created successfully.');
-    }
-
-    private function createFixPhpStyle()
-    {
-        $content_work = file_get_contents('https://github.com/vortechstudio-packager/github-workflow/raw/main/github/workflows/fix-php-code-style.yml');
-        file_put_contents(base_path('.github/workflows/fix-php-code-style.yml'), $content_work, FILE_APPEND);
-        $this->info('File fix-php-code-style.yml created successfully.');
-    }
-
-    private function createPhpStan()
-    {
-        $content_file_dist = file_get_contents('https://raw.githubusercontent.com/vortechstudio-packager/github-workflow/main/phpstan.neon.dist');
-        file_put_contents(base_path('phpstan.dist.neon'), $content_file_dist, FILE_APPEND);
-        $this->info('File phpstan.dist.neon created successfully.');
-
-        $content_file_base = file_get_contents('https://raw.githubusercontent.com/vortechstudio-packager/github-workflow/main/phpstan-baseline.neon');
-        file_put_contents(base_path('phpstan-baseline.neon'), $content_file_base, FILE_APPEND);
-        $this->info('File phpstan-baseline.neon created successfully.');
-
-        $content_work = file_get_contents('https://github.com/vortechstudio-packager/github-workflow/raw/main/github/workflows/phpstan.yml');
-        file_put_contents(base_path('.github/workflows/phpstan.yml'), $content_work, FILE_APPEND);
-        $this->info('File phpstan.yml created successfully.');
-    }
-
-    private function createPrUpdate()
-    {
-        $content_work = file_get_contents('https://raw.githubusercontent.com/vortechstudio-packager/github-workflow/main/github/workflows/pr_update.yml');
-        file_put_contents(base_path('.github/workflows/pr-update.yml'), $content_work, FILE_APPEND);
-        $this->info('File pr-update.yml created successfully.');
-    }
-
-    private function createRelease()
-    {
-        $content_work = file_get_contents('https://raw.githubusercontent.com/vortechstudio-packager/github-workflow/main/github/workflows/release.yml');
-        file_put_contents(base_path('.github/workflows/release.yml'), $content_work, FILE_APPEND);
-        $this->info('File release.yml created successfully.');
-
-        $content_semantic = file_get_contents('https://raw.githubusercontent.com/vortechstudio-packager/github-workflow/main/.releaserc');
-        file_put_contents(base_path('.releaserc'), $content_semantic, FILE_APPEND);
-        $this->info('File .releaserc created successfully.');
-    }
-
-    private function createTest()
-    {
-        $content_work = file_get_contents('https://raw.githubusercontent.com/vortechstudio-packager/github-workflow/main/github/workflows/test.yml');
-        file_put_contents(base_path('.github/workflows/test.yml'), $content_work, FILE_APPEND);
-        $this->info('File test.yml created successfully.');
-    }
-
-    private function createUpChangelog()
-    {
-        $content_work = file_get_contents('https://github.com/vortechstudio-packager/github-workflow/raw/main/github/workflows/update_changelog.yml');
-        file_put_contents(base_path('.github/workflows/update_changelog.yml'), $content_work, FILE_APPEND);
-        $this->info('File update_changelog.yml created successfully.');
-
-        file_put_contents(base_path('CHANGELOG.md'), '', FILE_APPEND);
     }
 }
