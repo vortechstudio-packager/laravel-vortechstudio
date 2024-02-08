@@ -45,6 +45,9 @@ class InstallCommand extends Command
             $this->error('Your database credentials are wrong!');
             return 0;
         }
+        if($this->confirm("Système visuel ?", true)) {
+            $this->installFrontSystem();
+        }
 
         $this->alert('Application is installed successfully.');
         return 1;
@@ -126,5 +129,15 @@ class InstallCommand extends Command
         Config::set("database.connections.$conn", $dbConfig);
         DB::purge($conn);
         DB::reconnect($conn);
+    }
+
+    private function installFrontSystem()
+    {
+        $this->info("Installation de livewire");
+        Process::run('composer require livewire/livewire');
+        Artisan::call('livewire:publish', ['--config']);
+
+        Process::run("npm install");
+        Process::run("npm run build");
     }
 }
