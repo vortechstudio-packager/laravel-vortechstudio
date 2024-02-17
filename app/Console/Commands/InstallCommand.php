@@ -23,6 +23,7 @@ class InstallCommand extends Command
                         {--db-password= : Password for accessing the database}
                         {--github-repository=: Repository du projet}
                         {--github-token=: Token accès au repository}
+                        {--no-migration=false}
                         ';
 
     protected $description = 'Installation Initial du système';
@@ -42,15 +43,19 @@ class InstallCommand extends Command
         $this->updateEnvVariablesFromOptions();
         $this->info('Env file created successfully.');
         $this->info('Runnning migrations and seeders...');
-        if (!static::runMigrationsWithSeeders()) {
-            $this->error('Your database credentials are wrong!');
-            return 0;
+        if($this->option('no-migration')) {
+            if (!static::runMigrationsWithSeeders()) {
+                $this->error('Your database credentials are wrong!');
+                return 0;
+            }
         }
         $this->installCoreSystem();
         $this->installOptionnalSystem();
-        if (!static::runMigrationsWithSeeders()) {
-            $this->error('Your database credentials are wrong!');
-            return 0;
+        if($this->option('no-migration')) {
+            if (!static::runMigrationsWithSeeders()) {
+                $this->error('Your database credentials are wrong!');
+                return 0;
+            }
         }
         if($this->confirm("Système visuel ?", true)) {
             $this->installFrontSystem();
