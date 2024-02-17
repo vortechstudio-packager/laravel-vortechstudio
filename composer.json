@@ -10,7 +10,7 @@
         "guzzlehttp/guzzle": "^7.2",
         "larabug/larabug": "^3.0",
         "laravel/framework": "^10.10",
-        "laravel/prompts": "^0.1.15",
+        "laravel/prompts": "*",
         "laravel/sanctum": "^3.3",
         "laravel/tinker": "^2.8",
         "salahhusa9/laravel-updater": "^1.0"

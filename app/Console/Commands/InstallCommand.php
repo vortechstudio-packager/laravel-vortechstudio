@@ -28,6 +28,7 @@ class InstallCommand extends Command
 
     public function handle()
     {
+        $this->installCoreSystem();
         if ($this->missingRequiredOptions()) {
             $this->error('Missing required options');
             $this->line('please run');
@@ -36,7 +37,7 @@ class InstallCommand extends Command
             return 0;
         }
         $this->alert('Application is installing...');
-        static::copyEnvExampleToEnv();
+        $this->copyEnvExampleToEnv();
         $this->generateAppKey();
         $this->updateEnvVariablesFromOptions();
         $this->info('Env file created successfully.');
@@ -84,10 +85,20 @@ class InstallCommand extends Command
         return true;
     }
 
-    public static function copyEnvExampleToEnv()
+    public function copyEnvExampleToEnv()
     {
-        if (!is_file(base_path('.env')) && is_file(base_path('.env.example'))) {
-            File::copy(base_path('.env.example'), base_path('.env'));
+        if($this->option('env') == 'local') {
+            if (!is_file(base_path('.env')) && is_file(base_path('.env.example'))) {
+                File::copy(base_path('.env.example'), base_path('.env'));
+            }
+        } elseif ($this->option('env') == 'staging' || $this->option('env') == 'testing') {
+            if (!is_file(base_path('.env')) && is_file(base_path('.env.staging'))) {
+                File::copy(base_path('.env.staging'), base_path('.env'));
+            }
+        } else {
+            if (!is_file(base_path('.env')) && is_file(base_path('.env.production'))) {
+                File::copy(base_path('.env.production'), base_path('.env'));
+            }
         }
     }
 
@@ -129,6 +140,15 @@ class InstallCommand extends Command
         Config::set("database.connections.$conn", $dbConfig);
         DB::purge($conn);
         DB::reconnect($conn);
+    }
+
+    private function installCoreSystem()
+    {
+        $flow = confirm('Voulez-vous utiliser git flow ?');
+        if ($flow) {
+            shell_exec('git flow init');
+        }
+        dd($flow);
     }
 
     private function installFrontSystem()
