@@ -115,7 +115,8 @@ class InstallCommand extends Command
 
     public static function runMigrationsWithSeeders()
     {
-        if (confirm("Voulez-vous executer les migration")) {
+        $a = confirm("Voulez-vous executer les migration");
+        if ($a) {
             try {
                 Artisan::call('migrate:fresh', ['--force' => true]);
                 Artisan::call('db:seed', ['--force' => true]);
