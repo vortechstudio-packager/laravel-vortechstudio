@@ -23,7 +23,6 @@ class InstallCommand extends Command
                         {--db-password= : Password for accessing the database}
                         {--github-repository=: Repository du projet}
                         {--github-token=: Token accès au repository}
-                        {--no-migration=false}
                         ';
 
     protected $description = 'Installation Initial du système';
@@ -43,19 +42,15 @@ class InstallCommand extends Command
         $this->updateEnvVariablesFromOptions();
         $this->info('Env file created successfully.');
         $this->info('Runnning migrations and seeders...');
-        if($this->option('no-migration')) {
-            if (!static::runMigrationsWithSeeders()) {
-                $this->error('Your database credentials are wrong!');
-                return 0;
-            }
+        if (!static::runMigrationsWithSeeders()) {
+            $this->error('Your database credentials are wrong!');
+            return 0;
         }
         $this->installCoreSystem();
         $this->installOptionnalSystem();
-        if($this->option('no-migration')) {
-            if (!static::runMigrationsWithSeeders()) {
-                $this->error('Your database credentials are wrong!');
-                return 0;
-            }
+        if (!static::runMigrationsWithSeeders()) {
+            $this->error('Your database credentials are wrong!');
+            return 0;
         }
         if($this->confirm("Système visuel ?", true)) {
             $this->installFrontSystem();
@@ -120,11 +115,14 @@ class InstallCommand extends Command
 
     public static function runMigrationsWithSeeders()
     {
-        try {
-            Artisan::call('migrate:fresh', ['--force' => true]);
-            Artisan::call('db:seed', ['--force' => true]);
-        } catch (\Exception $e) {
-            return false;
+        if (confirm("Voulez-vous executer les migration")) {
+            try {
+                Artisan::call('migrate:fresh', ['--force' => true]);
+                Artisan::call('db:seed', ['--force' => true]);
+            } catch (\Exception $e) {
+                return false;
+            }
+            return true;
         }
         return true;
     }
