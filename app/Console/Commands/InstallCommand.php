@@ -3,6 +3,7 @@
 namespace App\Console\Commands;
 
 use Illuminate\Console\Command;
+use Illuminate\Process\Pipe;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\DB;
@@ -28,7 +29,6 @@ class InstallCommand extends Command
 
     public function handle()
     {
-        $this->installCoreSystem();
         if ($this->missingRequiredOptions()) {
             $this->error('Missing required options');
             $this->line('please run');
@@ -42,6 +42,12 @@ class InstallCommand extends Command
         $this->updateEnvVariablesFromOptions();
         $this->info('Env file created successfully.');
         $this->info('Runnning migrations and seeders...');
+        if (!static::runMigrationsWithSeeders()) {
+            $this->error('Your database credentials are wrong!');
+            return 0;
+        }
+        $this->installCoreSystem();
+        $this->installOptionnalSystem();
         if (!static::runMigrationsWithSeeders()) {
             $this->error('Your database credentials are wrong!');
             return 0;
@@ -146,18 +152,76 @@ class InstallCommand extends Command
     {
         $flow = confirm('Voulez-vous utiliser git flow ?');
         if ($flow) {
-            shell_exec('git flow init');
+            Process::run('git flow init -f -d --feature feature/  --bugfix bugfix/ --release release/ --hotfix hotfix/ --support support/', function (string $type, string $output) {
+                if($type == 'err') {
+                    $this->error($output);
+                } else {
+                    $this->info("Git flow Initilialized !");
+                }
+            });
         }
-        dd($flow);
+
+
+        $this->info("Installation des dépendance principal obligatoire");
+
+        $result = Process::pipe(function (Pipe $pipe) {
+            $this->line("-- INSTALLATION DU LOG VIEWER --");
+            $pipe->command('composer install arcanedev/log-viewer');
+            $this->updateEnv([
+                'LOG_CHANNEL' => "daily"
+            ]);
+            $pipe->command("php artisan log-viewer:publish");
+            $pipe->command("php artisan log-viewer:clear");
+            $this->line("");
+            $this->line("-- INSTALLATION DE VIEWER/EXPORT PDF --");
+            $pipe->command("composer require barryvdh/laravel-dompdf");
+            $this->line("");
+            $this->line("-- ");
+        });
+        if($result->successful()) {
+
+        } else {
+            $this->error("Erreur lors de l'installation des dépendance obligatoire");
+        }
+    }
+
+    private function installOptionnalSystem()
+    {
+        $auth = confirm("Voulez-vous utiliser l'authentification ?", 'yes');
+        if($auth) {
+            $r = Process::pipe(function (Pipe $pipe) {
+                $pipe->command("composer require laravel/fortify");
+                Artisan::call("vendor:publish", ['--provider="Laravel\Fortify\FortifyServiceProvider"']);
+
+                $pipe->command("composer require rappasoft/laravel-authentication-log");
+                $pipe->command("composer require torann/geoip");
+
+                Artisan::call('vendor:publish', ['--provider="Rappasoft\LaravelAuthenticationLog\LaravelAuthenticationLogServiceProvider"', '--tag="authentication-log-migrations"']);
+                Artisan::call('vendor:publish', ['--provider="Torann\GeoIP\GeoIPServiceProvider"', '--tag=config']);
+            });
+
+            $r ? $this->alert("Installation de Laravel Fortify Terminer, n'oublier pas d'ajouter l'interface 'AuthenticationLoggable' au model 'User'") : $this->error("Erreur lors de l'installation de laravel Fortify");
+        }
+
+
     }
 
     private function installFrontSystem()
     {
         $this->info("Installation de livewire");
-        Process::run('composer require livewire/livewire');
-        Artisan::call('livewire:publish', ['--config']);
+        $result = Process::pipe(function (Pipe $pipe) {
+            $pipe->command("composer require livewire/livewire");
+            Artisan::call("livewire:publish", ["--config"]);
+        });
 
-        Process::run("npm install");
-        Process::run("npm run build");
+        if ($result->successful()) {
+            Process::run("npm install");
+            Process::run("npm run build");
+        }
+
+        $result = Process::pipe(function (Pipe $pipe) {
+            $pipe->command("composer require jantinnerezo/livewire-alert");
+        });
+
     }
 }
